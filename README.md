@@ -148,7 +148,7 @@ auto j3 = geojson::Feature(geojson::Point(-40, 30),
 ```
 In the case of `j3`, no `"id"` element will be added to the feature.
 
-## Feature
+## FeatureCollection
 
 In order to encode a Feature, use `geojson::FeatureCollection()`. The callback is used to get the features in the collection. For example,
 
