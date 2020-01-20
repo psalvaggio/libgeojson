@@ -50,6 +50,10 @@ endif()
 
 add_library(libgeojson INTERFACE)
 add_library(${PROJECT_NAME}::libgeojson ALIAS libgeojson)
+target_link_libraries(libgeojson
+  INTERFACE
+    nlohmann_json::nlohmann_json
+)
 target_include_directories(libgeojson
   INTERFACE
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
