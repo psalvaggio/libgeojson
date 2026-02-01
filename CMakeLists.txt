@@ -8,7 +8,7 @@ endif()
 
 project(libgeojson
   VERSION
-    0.0.0
+    0.1.0
   LANGUAGES
     CXX
 )
