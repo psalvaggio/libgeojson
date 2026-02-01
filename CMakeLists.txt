@@ -42,7 +42,7 @@ endif()
 
 message(STATUS "Build type is: ${CMAKE_BUILD_TYPE}")
 
-include(GnuInstallDirs)
+include(GNUInstallDirs)
 
 find_package(nlohmann_json REQUIRED)
 
