@@ -42,3 +42,6 @@ build
 
 # CMake-generated files
 compile_commands.json
+
+# MacOS files
+.DS_Store
