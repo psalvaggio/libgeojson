@@ -7,6 +7,7 @@
 
 #include <gtest/gtest.h>
 
+#include <string_view>
 #include <vector>
 
 #include "Predicates.h"
@@ -34,9 +35,9 @@ void to_json(nlohmann::json& j, const Props& props) {
 TEST(LibgeojsonTest, NameTests) {
   using namespace geojson;
 
-#define TEST_GEO_TYPE(constant, name)  \
-  EXPECT_EQ(TypeName(constant), name); \
-  EXPECT_EQ(TypeName<constant>(), name);
+#define TEST_GEO_TYPE(constant, name)                    \
+  EXPECT_EQ(TypeName(constant), std::string_view(name)); \
+  EXPECT_EQ(TypeName<constant>(), std::string_view(name));
 
   TEST_GEO_TYPE(Type::Point, "Point")
   TEST_GEO_TYPE(Type::MultiPoint, "MultiPoint")
