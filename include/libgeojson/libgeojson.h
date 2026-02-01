@@ -139,7 +139,7 @@ inline nlohmann::json Point(double lon, double lat) {
 
 namespace detail {
 
-#if __cplusplus >= 201703L
+#ifdef __cpp_lib_is_invocable
 
 template <class F, class... Args>
 using invoke_result = std::invoke_result<F, Args...>;
