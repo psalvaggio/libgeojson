@@ -10,7 +10,7 @@
 #include "libgeojson/libgeojson.h"
 
 /** Tests whether j is a JSON object */
-::testing::AssertionResult IsJsonObject(const nlohmann::json& j) {
+inline ::testing::AssertionResult IsJsonObject(const nlohmann::json& j) {
   if (!j.is_object()) {
     return ::testing::AssertionFailure() << "Expected a JSON object, but got:\n"
                                          << j.dump();
@@ -19,7 +19,8 @@
 }
 
 /** Test whether the "type" field is the given value */
-::testing::AssertionResult IsType(const nlohmann::json& j, const char* type) {
+inline ::testing::AssertionResult IsType(const nlohmann::json& j,
+                                         const char* type) {
   auto res = IsJsonObject(j);
   if (!res) return res;
 
@@ -57,7 +58,7 @@ template <geojson::Type T>
 }
 
 /** Tests whether j is a JSON array */
-::testing::AssertionResult IsJsonArray(const nlohmann::json& j) {
+inline ::testing::AssertionResult IsJsonArray(const nlohmann::json& j) {
   if (!j.is_array()) {
     return ::testing::AssertionFailure() << "Expect an array, but got:\n"
                                          << j.dump();
@@ -66,8 +67,8 @@ template <geojson::Type T>
 }
 
 /** Tests whether j is an array of size size */
-::testing::AssertionResult IsJsonArrayOfSize(const nlohmann::json& j,
-                                             size_t size) {
+inline ::testing::AssertionResult IsJsonArrayOfSize(const nlohmann::json& j,
+                                                    size_t size) {
   if (j.is_array()) {
     if (j.size() == size) {
       return ::testing::AssertionSuccess();
@@ -83,8 +84,9 @@ template <geojson::Type T>
 }
 
 /** Tests the given 3D position */
-::testing::AssertionResult TestPosition(const nlohmann::json& test, double lon,
-                                        double lat, double alt) {
+inline ::testing::AssertionResult TestPosition(const nlohmann::json& test,
+                                               double lon, double lat,
+                                               double alt) {
   auto res = IsJsonArrayOfSize(test, 3u);
   if (!res) return res;
 
@@ -98,8 +100,8 @@ template <geojson::Type T>
 }
 
 /** Tests the given 2D position */
-::testing::AssertionResult TestPosition(const nlohmann::json& test, double lon,
-                                        double lat) {
+inline ::testing::AssertionResult TestPosition(const nlohmann::json& test,
+                                               double lon, double lat) {
   auto res = IsJsonArrayOfSize(test, 2u);
   if (!res) return res;
 
@@ -111,16 +113,16 @@ template <geojson::Type T>
 }
 
 /** Tests the given 3D point object */
-::testing::AssertionResult TestPoint(const nlohmann::json& j, double lon,
-                                     double lat, double alt) {
+inline ::testing::AssertionResult TestPoint(const nlohmann::json& j, double lon,
+                                            double lat, double alt) {
   auto res = IsCoordinatesObject<geojson::Type::Point>(j);
   if (!res) return res;
   return TestPosition(j["coordinates"], lon, lat, alt);
 }
 
 /** Tests the given 2D point object */
-::testing::AssertionResult TestPoint(const nlohmann::json& j, double lon,
-                                     double lat) {
+inline ::testing::AssertionResult TestPoint(const nlohmann::json& j, double lon,
+                                            double lat) {
   auto res = IsCoordinatesObject<geojson::Type::Point>(j);
   if (!res) return res;
   return TestPosition(j["coordinates"], lon, lat);
@@ -333,9 +335,9 @@ template <typename GetNumRings, typename GetRingLength, typename GetPoint>
 }
 
 /** Tests the given Feature object */
-::testing::AssertionResult TestFeature(const nlohmann::json& j,
-                                       const nlohmann::json& geometry,
-                                       const nlohmann::json& props) {
+inline ::testing::AssertionResult TestFeature(const nlohmann::json& j,
+                                              const nlohmann::json& geometry,
+                                              const nlohmann::json& props) {
   auto res = IsType<geojson::Type::Feature>(j);
   if (!res) return res;
   if (j["geometry"] != geometry) {
@@ -361,7 +363,7 @@ template <typename Callable>
   if (!res) return res;
 
   const auto& features = j["features"];
-  res = IsJsonArrayOfSize(j, numFeatures);
+  res = IsJsonArrayOfSize(features, numFeatures);
   if (!res) return res;
 
   for (size_t i = 0; i < numFeatures; i++) {

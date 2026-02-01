@@ -7,11 +7,9 @@
 
 #pragma once
 
-#include <functional>
+#include <nlohmann/json.hpp>
 #include <stdexcept>
 #include <type_traits>
-
-#include <nlohmann/json.hpp>
 
 namespace geojson {
 
@@ -118,7 +116,7 @@ inline nlohmann::json CoordinatesObject(nlohmann::json&& coords) {
   return nlohmann::json{{"type", TypeName<T>()},
                         {"coordinates", std::move(coords)}};
 }
-}
+}  // namespace detail
 
 /** Returns a GeoJSON Point object (section 3.1.2)
  *
@@ -214,7 +212,7 @@ nlohmann::json MultiPointCoordinates(size_t numPoints, Callable&& getPoint) {
   }
   return coords;
 }
-}
+}  // namespace detail
 
 /** Returns a GeoJSON MultiPoint object (section 3.1.3)
  *
@@ -286,7 +284,7 @@ nlohmann::json LineStringCoordinates(size_t numPoints, Callable&& getPoint) {
   }
   return coords;
 }
-}
+}  // namespace detail
 
 /** Returns a GeoJSON LineString object (section 3.1.4)
  *
@@ -362,7 +360,7 @@ nlohmann::json MultiLineStringCoordinates(size_t numLines,
   }
   return coords;
 }
-}
+}  // namespace detail
 
 /** Returns a MultiLineString GeoJSON object (section 3.1.5)
  *
@@ -504,7 +502,7 @@ nlohmann::json PolygonCoordinates(size_t numRings,
 
   return coords;
 }
-}
+}  // namespace detail
 
 /** Returns a Polygon GeoJSON object (section 3.1.6)
  *
@@ -595,7 +593,7 @@ nlohmann::json MultiPolygonCoordinates(size_t numPolygons,
   }
   return coords;
 }
-}
+}  // namespace detail
 
 /** Returns a MultiPolygon GeoJSON object (section 3.1.7)
  *
@@ -719,4 +717,4 @@ inline nlohmann::json FeatureCollection(size_t numFeatures,
   }
   return j;
 }
-}
+}  // namespace geojson

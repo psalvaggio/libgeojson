@@ -5,9 +5,9 @@
  *  \date 17 Jan 2020
  */
 
-#include <vector>
-
 #include <gtest/gtest.h>
+
+#include <vector>
 
 #include "Predicates.h"
 #include "libgeojson/libgeojson.h"
@@ -230,13 +230,9 @@ TEST(LibgeojsonTest, FeatureCollectionTest) {
   std::vector<Pt3D> pts{Pt3D(1, 2, 3), Pt3D(2, 3, 4), Pt3D(3, 4, 5)};
   std::vector<nlohmann::json> props{Props("bar", 4.3), Props("bar2", 5.1),
                                     Props("bar3", 4.8)};
-  TestFeatureCollection(pts.size(), [&](size_t i) -> nlohmann::json {
-    return geojson::Feature(geojson::Point(pts[i].x, pts[i].y, pts[i].z),
-                            props[i]);
-  });
-}
-
-int main(int argc, char** argv) {
-  ::testing::InitGoogleTest(&argc, argv);
-  return RUN_ALL_TESTS();
+  EXPECT_TRUE(
+      TestFeatureCollection(pts.size(), [&](size_t i) -> nlohmann::json {
+        return geojson::Feature(geojson::Point(pts[i].x, pts[i].y, pts[i].z),
+                                props[i]);
+      }));
 }
