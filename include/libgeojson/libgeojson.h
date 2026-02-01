@@ -7,10 +7,9 @@
 
 #pragma once
 
+#include <nlohmann/json.hpp>
 #include <stdexcept>
 #include <type_traits>
-
-#include <nlohmann/json.hpp>
 
 namespace geojson {
 
@@ -30,7 +29,7 @@ enum class Type {
  *
  *  \param type  The geometry type
  */
-inline const char *TypeName(Type type) {
+inline const char* TypeName(Type type) {
   static constexpr auto kPointName = "Point";
   static constexpr auto kMultiPointName = "MultiPoint";
   static constexpr auto kLineStringName = "LineString";
@@ -42,26 +41,26 @@ inline const char *TypeName(Type type) {
   static constexpr auto kFeatureCollectionName = "FeatureCollection";
 
   switch (type) {
-  case Type::Point:
-    return kPointName;
-  case Type::MultiPoint:
-    return kMultiPointName;
-  case Type::LineString:
-    return kLineStringName;
-  case Type::MultiLineString:
-    return kMultiLineStringName;
-  case Type::Polygon:
-    return kPolygonName;
-  case Type::MultiPolygon:
-    return kMultiPolygonName;
-  case Type::GeometryCollection:
-    return kGeometryCollectionName;
-  case Type::Feature:
-    return kFeatureName;
-  case Type::FeatureCollection:
-    return kFeatureCollectionName;
-  default:
-    throw std::out_of_range("Invalid geometry type given");
+    case Type::Point:
+      return kPointName;
+    case Type::MultiPoint:
+      return kMultiPointName;
+    case Type::LineString:
+      return kLineStringName;
+    case Type::MultiLineString:
+      return kMultiLineStringName;
+    case Type::Polygon:
+      return kPolygonName;
+    case Type::MultiPolygon:
+      return kMultiPolygonName;
+    case Type::GeometryCollection:
+      return kGeometryCollectionName;
+    case Type::Feature:
+      return kFeatureName;
+    case Type::FeatureCollection:
+      return kFeatureCollectionName;
+    default:
+      throw std::out_of_range("Invalid geometry type given");
   }
 }
 
@@ -69,7 +68,10 @@ inline const char *TypeName(Type type) {
  *
  *  \tparam G  The geometry type
  */
-template <Type G> const char *TypeName() { return TypeName(G); }
+template <Type G>
+const char* TypeName() {
+  return TypeName(G);
+}
 
 /** Returns a position array (section 3.1.1)
  *
@@ -110,11 +112,11 @@ inline nlohmann::json PointCoordinates(double lon, double lat) {
 
 /** Returns a GeoJSON object, with a "type" and "coordinates" object */
 template <Type T>
-inline nlohmann::json CoordinatesObject(nlohmann::json &&coords) {
+inline nlohmann::json CoordinatesObject(nlohmann::json&& coords) {
   return nlohmann::json{{"type", TypeName<T>()},
                         {"coordinates", std::move(coords)}};
 }
-} // namespace detail
+}  // namespace detail
 
 /** Returns a GeoJSON Point object (section 3.1.2)
  *
@@ -157,13 +159,13 @@ template <typename F, typename... Args>
 struct is_invocable
     : std::is_constructible<
           std::function<void(Args...)>,
-          std::reference_wrapper<typename std::remove_reference<F>::type>> {};
+          std::reference_wrapper<typename std::remove_reference<F>::type> > {};
 
 template <typename R, typename F, typename... Args>
 struct is_invocable_r
     : std::is_constructible<
           std::function<R(Args...)>,
-          std::reference_wrapper<typename std::remove_reference<F>::type>> {};
+          std::reference_wrapper<typename std::remove_reference<F>::type> > {};
 
 #endif
 
@@ -185,9 +187,9 @@ using IsCallbackSignature = typename std::enable_if<
  *          MultiPoint object
  */
 template <typename Callable,
-          detail::IsCallbackSignature<Callable, void, size_t, double &,
-                                      double &, double &> = true>
-nlohmann::json MultiPointCoordinates(size_t numPoints, Callable &&getPoint) {
+          detail::IsCallbackSignature<Callable, void, size_t, double&, double&,
+                                      double&> = true>
+nlohmann::json MultiPointCoordinates(size_t numPoints, Callable&& getPoint) {
   auto coords = nlohmann::json::array();
   double lon, lat, alt;
   for (size_t i = 0; i < numPoints; i++) {
@@ -199,9 +201,9 @@ nlohmann::json MultiPointCoordinates(size_t numPoints, Callable &&getPoint) {
 
 /** \overload */
 template <typename Callable,
-          detail::IsCallbackSignature<Callable, void, size_t, double &,
-                                      double &> = true>
-nlohmann::json MultiPointCoordinates(size_t numPoints, Callable &&getPoint) {
+          detail::IsCallbackSignature<Callable, void, size_t, double&,
+                                      double&> = true>
+nlohmann::json MultiPointCoordinates(size_t numPoints, Callable&& getPoint) {
   auto coords = nlohmann::json::array();
   double lon, lat;
   for (size_t i = 0; i < numPoints; i++) {
@@ -210,7 +212,7 @@ nlohmann::json MultiPointCoordinates(size_t numPoints, Callable &&getPoint) {
   }
   return coords;
 }
-} // namespace detail
+}  // namespace detail
 
 /** Returns a GeoJSON MultiPoint object (section 3.1.3)
  *
@@ -224,12 +226,12 @@ nlohmann::json MultiPointCoordinates(size_t numPoints, Callable &&getPoint) {
  *  \return A JSON MultiPoint object
  */
 template <typename Callable>
-nlohmann::json MultiPoint(size_t numPoints, Callable &&getPoint) {
+nlohmann::json MultiPoint(size_t numPoints, Callable&& getPoint) {
   static_assert(
-      detail::is_invocable_r<void, Callable, size_t, double &, double &,
-                             double &>::value ||
-          detail::is_invocable_r<void, Callable, size_t, double &,
-                                 double &>::value,
+      detail::is_invocable_r<void, Callable, size_t, double&, double&,
+                             double&>::value ||
+          detail::is_invocable_r<void, Callable, size_t, double&,
+                                 double&>::value,
       "Callback must either be void(size_t, double&, double&, double&) or "
       "void(size_t, double&, double&)");
   return detail::CoordinatesObject<Type::MultiPoint>(
@@ -251,9 +253,9 @@ namespace detail {
  *          LineString object
  */
 template <typename Callable,
-          detail::IsCallbackSignature<Callable, void, size_t, double &,
-                                      double &, double &> = true>
-nlohmann::json LineStringCoordinates(size_t numPoints, Callable &&getPoint) {
+          detail::IsCallbackSignature<Callable, void, size_t, double&, double&,
+                                      double&> = true>
+nlohmann::json LineStringCoordinates(size_t numPoints, Callable&& getPoint) {
   if (numPoints <= 1) {
     throw std::domain_error("LineString objects must have at least 2 points");
   }
@@ -268,9 +270,9 @@ nlohmann::json LineStringCoordinates(size_t numPoints, Callable &&getPoint) {
 
 /** \overload */
 template <typename Callable,
-          detail::IsCallbackSignature<Callable, void, size_t, double &,
-                                      double &> = true>
-nlohmann::json LineStringCoordinates(size_t numPoints, Callable &&getPoint) {
+          detail::IsCallbackSignature<Callable, void, size_t, double&,
+                                      double&> = true>
+nlohmann::json LineStringCoordinates(size_t numPoints, Callable&& getPoint) {
   if (numPoints <= 1) {
     throw std::domain_error("LineString objects must have at least 2 points");
   }
@@ -282,7 +284,7 @@ nlohmann::json LineStringCoordinates(size_t numPoints, Callable &&getPoint) {
   }
   return coords;
 }
-} // namespace detail
+}  // namespace detail
 
 /** Returns a GeoJSON LineString object (section 3.1.4)
  *
@@ -296,12 +298,12 @@ nlohmann::json LineStringCoordinates(size_t numPoints, Callable &&getPoint) {
  *  \return A GeoJSON LineString object
  */
 template <typename Callable>
-nlohmann::json LineString(size_t numPoints, Callable &&getPoint) {
+nlohmann::json LineString(size_t numPoints, Callable&& getPoint) {
   static_assert(
-      detail::is_invocable_r<void, Callable, size_t, double &, double &,
-                             double &>::value ||
-          detail::is_invocable_r<void, Callable, size_t, double &,
-                                 double &>::value,
+      detail::is_invocable_r<void, Callable, size_t, double&, double&,
+                             double&>::value ||
+          detail::is_invocable_r<void, Callable, size_t, double&,
+                                 double&>::value,
       "Callback must either be void(size_t, double&, double&, double&) or "
       "void(size_t, double&, double&)");
   return detail::CoordinatesObject<Type::LineString>(
@@ -328,15 +330,15 @@ namespace detail {
  *          MultiLineString object
  */
 template <typename GetLineLength, typename GetPoint,
-          detail::IsCallbackSignature<GetPoint, void, size_t, size_t, double &,
-                                      double &, double &> = true>
+          detail::IsCallbackSignature<GetPoint, void, size_t, size_t, double&,
+                                      double&, double&> = true>
 nlohmann::json MultiLineStringCoordinates(size_t numLines,
-                                          GetLineLength &&getLineLength,
-                                          GetPoint &&getPoint) {
+                                          GetLineLength&& getLineLength,
+                                          GetPoint&& getPoint) {
   auto coords = nlohmann::json::array();
   for (size_t i = 0; i < numLines; i++) {
     coords.push_back(detail::LineStringCoordinates(
-        getLineLength(i), [&](size_t j, double &lon, double &lat, double &alt) {
+        getLineLength(i), [&](size_t j, double& lon, double& lat, double& alt) {
           getPoint(i, j, lon, lat, alt);
         }));
   }
@@ -345,20 +347,20 @@ nlohmann::json MultiLineStringCoordinates(size_t numLines,
 
 /* \overload */
 template <typename GetLineLength, typename GetPoint,
-          detail::IsCallbackSignature<GetPoint, void, size_t, size_t, double &,
-                                      double &> = true>
+          detail::IsCallbackSignature<GetPoint, void, size_t, size_t, double&,
+                                      double&> = true>
 nlohmann::json MultiLineStringCoordinates(size_t numLines,
-                                          GetLineLength &&getLineLength,
-                                          GetPoint &&getPoint) {
+                                          GetLineLength&& getLineLength,
+                                          GetPoint&& getPoint) {
   auto coords = nlohmann::json::array();
   for (size_t i = 0; i < numLines; i++) {
     coords.push_back(detail::LineStringCoordinates(
         getLineLength(i),
-        [&](size_t j, double &lon, double &lat) { getPoint(i, j, lon, lat); }));
+        [&](size_t j, double& lon, double& lat) { getPoint(i, j, lon, lat); }));
   }
   return coords;
 }
-} // namespace detail
+}  // namespace detail
 
 /** Returns a MultiLineString GeoJSON object (section 3.1.5)
  *
@@ -376,13 +378,13 @@ nlohmann::json MultiLineStringCoordinates(size_t numLines,
  */
 template <typename GetLineLength, typename GetPoint>
 nlohmann::json MultiLineString(size_t numLineStrings,
-                               GetLineLength &&getLineLength,
-                               GetPoint &&getPoint) {
+                               GetLineLength&& getLineLength,
+                               GetPoint&& getPoint) {
   static_assert(
-      detail::is_invocable_r<void, GetPoint, size_t, size_t, double &, double &,
-                             double &>::value ||
-          detail::is_invocable_r<void, GetPoint, size_t, size_t, double &,
-                                 double &>::value,
+      detail::is_invocable_r<void, GetPoint, size_t, size_t, double&, double&,
+                             double&>::value ||
+          detail::is_invocable_r<void, GetPoint, size_t, size_t, double&,
+                                 double&>::value,
       "GetPoint callback must either be void(size_t, size_t, double&, "
       "double&, double&) or void(size_t, size_t, double&, double&)");
   return detail::CoordinatesObject<Type::MultiLineString>(
@@ -399,12 +401,12 @@ namespace detail {
  *
  *  \return Whether the array is in counter-clockwise order
  */
-inline bool IsCcw(const nlohmann::json &coords) {
+inline bool IsCcw(const nlohmann::json& coords) {
   // Sum (x2 - x1)(y2 + y1), that will be > 0, if the points are CW
   double cwEdgeSum = 0;
   for (size_t i = 0; i < coords.size(); i++) {
-    const auto &pt1 = coords[i];
-    const auto &pt2 = coords[(i + 1) % coords.size()];
+    const auto& pt1 = coords[i];
+    const auto& pt2 = coords[(i + 1) % coords.size()];
 
     cwEdgeSum +=
         (pt2[0].template get<double>() - pt1[0].template get<double>()) *
@@ -426,7 +428,7 @@ inline bool IsCcw(const nlohmann::json &coords) {
  */
 template <typename GetPoint>
 nlohmann::json LinearRingCoordinates(size_t numPoints, bool ccw,
-                                     GetPoint &&getPoint) {
+                                     GetPoint&& getPoint) {
   // We must be at least a triangle
   if (numPoints < 3) {
     throw std::domain_error("Linear rings must have at least 3 points");
@@ -467,16 +469,16 @@ nlohmann::json LinearRingCoordinates(size_t numPoints, bool ccw,
  *          Polygon object
  */
 template <typename GetRingLength, typename GetPoint,
-          detail::IsCallbackSignature<GetPoint, void, size_t, size_t, double &,
-                                      double &, double &> = true>
+          detail::IsCallbackSignature<GetPoint, void, size_t, size_t, double&,
+                                      double&, double&> = true>
 nlohmann::json PolygonCoordinates(size_t numRings,
-                                  GetRingLength &&getRingLength,
-                                  GetPoint &&getPoint) {
+                                  GetRingLength&& getRingLength,
+                                  GetPoint&& getPoint) {
   nlohmann::json coords;
   for (size_t i = 0; i < numRings; i++) {
     coords.push_back(detail::LinearRingCoordinates(
         getRingLength(i), i == 0,
-        [&](size_t j, double &lat, double &lon, double &alt) {
+        [&](size_t j, double& lat, double& lon, double& alt) {
           getPoint(i, j, lat, lon, alt);
         }));
   }
@@ -486,21 +488,21 @@ nlohmann::json PolygonCoordinates(size_t numRings,
 
 /** \overload */
 template <typename GetRingLength, typename GetPoint,
-          detail::IsCallbackSignature<GetPoint, void, size_t, size_t, double &,
-                                      double &> = true>
+          detail::IsCallbackSignature<GetPoint, void, size_t, size_t, double&,
+                                      double&> = true>
 nlohmann::json PolygonCoordinates(size_t numRings,
-                                  GetRingLength &&getRingLength,
-                                  GetPoint &&getPoint) {
+                                  GetRingLength&& getRingLength,
+                                  GetPoint&& getPoint) {
   nlohmann::json coords;
   for (size_t i = 0; i < numRings; i++) {
     coords.push_back(detail::LinearRingCoordinates(
         getRingLength(i), i == 0,
-        [&](size_t j, double &lat, double &lon) { getPoint(i, j, lat, lon); }));
+        [&](size_t j, double& lat, double& lon) { getPoint(i, j, lat, lon); }));
   }
 
   return coords;
 }
-} // namespace detail
+}  // namespace detail
 
 /** Returns a Polygon GeoJSON object (section 3.1.6)
  *
@@ -517,13 +519,13 @@ nlohmann::json PolygonCoordinates(size_t numRings,
  *  \return A GeoJSON Polygon object
  */
 template <typename GetRingLength, typename GetPoint>
-nlohmann::json Polygon(size_t numRings, GetRingLength &&getRingLength,
-                       GetPoint &&getPoint) {
+nlohmann::json Polygon(size_t numRings, GetRingLength&& getRingLength,
+                       GetPoint&& getPoint) {
   static_assert(
-      detail::is_invocable_r<void, GetPoint, size_t, size_t, double &, double &,
-                             double &>::value ||
-          detail::is_invocable_r<void, GetPoint, size_t, size_t, double &,
-                                 double &>::value,
+      detail::is_invocable_r<void, GetPoint, size_t, size_t, double&, double&,
+                             double&>::value ||
+          detail::is_invocable_r<void, GetPoint, size_t, size_t, double&,
+                                 double&>::value,
       "GetPoint callback must either be void(size_t, size_t, double&, "
       "double&, double&) or void(size_t, size_t, double&, double&)");
   return detail::CoordinatesObject<Type::Polygon>(detail::PolygonCoordinates(
@@ -555,16 +557,17 @@ namespace detail {
  */
 template <typename GetNumRings, typename GetRingLength, typename GetPoint,
           detail::IsCallbackSignature<GetPoint, void, size_t, size_t, size_t,
-                                      double &, double &, double &> = true>
-nlohmann::json
-MultiPolygonCoordinates(size_t numPolygons, GetNumRings &&getNumRings,
-                        GetRingLength &&getRingLength, GetPoint &&getPoint) {
+                                      double&, double&, double&> = true>
+nlohmann::json MultiPolygonCoordinates(size_t numPolygons,
+                                       GetNumRings&& getNumRings,
+                                       GetRingLength&& getRingLength,
+                                       GetPoint&& getPoint) {
   nlohmann::json coords;
   for (size_t i = 0; i < numPolygons; i++) {
     coords.push_back(detail::PolygonCoordinates(
         getNumRings(i),
         [&](size_t ring) -> size_t { return getRingLength(i, ring); },
-        [&](size_t ring, size_t pt, double &lon, double &lat, double &alt) {
+        [&](size_t ring, size_t pt, double& lon, double& lat, double& alt) {
           getPoint(i, ring, pt, lon, lat, alt);
         }));
   }
@@ -574,22 +577,23 @@ MultiPolygonCoordinates(size_t numPolygons, GetNumRings &&getNumRings,
 /** \overload */
 template <typename GetNumRings, typename GetRingLength, typename GetPoint,
           detail::IsCallbackSignature<GetPoint, void, size_t, size_t, size_t,
-                                      double &, double &> = true>
-nlohmann::json
-MultiPolygonCoordinates(size_t numPolygons, GetNumRings &&getNumRings,
-                        GetRingLength &&getRingLength, GetPoint &&getPoint) {
+                                      double&, double&> = true>
+nlohmann::json MultiPolygonCoordinates(size_t numPolygons,
+                                       GetNumRings&& getNumRings,
+                                       GetRingLength&& getRingLength,
+                                       GetPoint&& getPoint) {
   nlohmann::json coords;
   for (size_t i = 0; i < numPolygons; i++) {
     coords.push_back(PolygonCoordinates(
         getNumRings(i),
         [&](size_t ring) -> size_t { return getRingLength(i, ring); },
-        [&](size_t ring, size_t pt, double &lon, double &lat) {
+        [&](size_t ring, size_t pt, double& lon, double& lat) {
           getPoint(i, ring, pt, lon, lat);
         }));
   }
   return coords;
 }
-} // namespace detail
+}  // namespace detail
 
 /** Returns a MultiPolygon GeoJSON object (section 3.1.7)
  *
@@ -611,14 +615,14 @@ MultiPolygonCoordinates(size_t numPolygons, GetNumRings &&getNumRings,
  *  \return A GeoJSON MultiPolygon object
  */
 template <typename GetNumRings, typename GetRingLength, typename GetPoint>
-nlohmann::json MultiPolygon(size_t numPolygons, GetNumRings &&getNumRings,
-                            GetRingLength &&getRingLength,
-                            GetPoint &&getPoint) {
+nlohmann::json MultiPolygon(size_t numPolygons, GetNumRings&& getNumRings,
+                            GetRingLength&& getRingLength,
+                            GetPoint&& getPoint) {
   static_assert(
-      detail::is_invocable_r<void, GetPoint, size_t, size_t, size_t, double &,
-                             double &, double &>::value ||
+      detail::is_invocable_r<void, GetPoint, size_t, size_t, size_t, double&,
+                             double&, double&>::value ||
           detail::is_invocable_r<void, GetPoint, size_t, size_t, size_t,
-                                 double &, double &>::value,
+                                 double&, double&>::value,
       "GetPoint callback must either be void(size_t, size_t, size_t, double&, "
       "double&, double&) or void(size_t, size_t, size_t, double&, double&)");
   return detail::CoordinatesObject<Type::MultiPolygon>(
@@ -640,7 +644,7 @@ nlohmann::json MultiPolygon(size_t numPolygons, GetNumRings &&getNumRings,
  */
 template <typename Callable>
 nlohmann::json GeometryCollection(size_t numGeometries,
-                                  Callable &&getGeometry) {
+                                  Callable&& getGeometry) {
   nlohmann::json j;
   for (size_t i = 0; i < numGeometries; i++) {
     j.push_back(getGeometry(i));
@@ -657,8 +661,8 @@ nlohmann::json GeometryCollection(size_t numGeometries,
  *
  *  \return A GeoJSON Feature object
  */
-inline nlohmann::json Feature(const nlohmann::json &geometry,
-                              const nlohmann::json &properties) {
+inline nlohmann::json Feature(const nlohmann::json& geometry,
+                              const nlohmann::json& properties) {
   return nlohmann::json{{"type", TypeName<Type::Feature>()},
                         {"geometry", geometry},
                         {"properties", properties}};
@@ -672,9 +676,9 @@ inline nlohmann::json Feature(const nlohmann::json &geometry,
  *
  *  \return A GeoJSON Feature object
  */
-inline nlohmann::json Feature(const std::string &id,
-                              const nlohmann::json &geometry,
-                              const nlohmann::json &properties) {
+inline nlohmann::json Feature(const std::string& id,
+                              const nlohmann::json& geometry,
+                              const nlohmann::json& properties) {
   auto j = Feature(geometry, properties);
   j["id"] = id;
   return j;
@@ -683,8 +687,8 @@ inline nlohmann::json Feature(const std::string &id,
 /** \overload */
 template <typename T, typename = typename std::enable_if<
                           std::is_arithmetic<T>::value>::type>
-inline nlohmann::json Feature(T id, const nlohmann::json &geometry,
-                              const nlohmann::json &properties) {
+inline nlohmann::json Feature(T id, const nlohmann::json& geometry,
+                              const nlohmann::json& properties) {
   auto j = Feature(geometry, properties);
   j["id"] = id;
   return j;
@@ -700,17 +704,17 @@ inline nlohmann::json Feature(T id, const nlohmann::json &geometry,
  */
 template <typename Callback>
 inline nlohmann::json FeatureCollection(size_t numFeatures,
-                                        Callback &&getFeature) {
+                                        Callback&& getFeature) {
   static_assert(detail::is_invocable_r<nlohmann::json, Callback, size_t>::value,
                 "Callback must be of the form nlohmann::json(size_t)");
 
   nlohmann::json j{{"type", TypeName<Type::FeatureCollection>()}};
 
-  auto &featuresJ = j["features"];
+  auto& featuresJ = j["features"];
   featuresJ = nlohmann::json::array();
   for (size_t i = 0; i < numFeatures; i++) {
     featuresJ.push_back(getFeature(i));
   }
   return j;
 }
-} // namespace geojson
+}  // namespace geojson

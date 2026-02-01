@@ -5,9 +5,9 @@
  *  \date 17 Jan 2020
  */
 
-#include <vector>
-
 #include <gtest/gtest.h>
+
+#include <vector>
 
 #include "Predicates.h"
 #include "libgeojson/libgeojson.h"
@@ -27,15 +27,15 @@ struct Props {
 };
 
 // JSON conversion for Props
-void to_json(nlohmann::json &j, const Props &props) {
+void to_json(nlohmann::json& j, const Props& props) {
   j = nlohmann::json{{"name", props.name}, {"foo", props.foo}};
 }
 
 TEST(LibgeojsonTest, NameTests) {
   using namespace geojson;
 
-#define TEST_GEO_TYPE(constant, name)                                          \
-  EXPECT_EQ(TypeName(constant), name);                                         \
+#define TEST_GEO_TYPE(constant, name)  \
+  EXPECT_EQ(TypeName(constant), name); \
   EXPECT_EQ(TypeName<constant>(), name);
 
   TEST_GEO_TYPE(Type::Point, "Point")
@@ -61,14 +61,14 @@ TEST(LibgeojsonTest, PointTest) {
 TEST(LibgeojsonTest, MultiPointTest) {
   std::vector<double> pts2d{0, 0.5, 1, 1.5, 2, 2.5};
   EXPECT_TRUE(
-      TestMultiPoint(pts2d.size() / 2, [&](size_t i, double &lon, double &lat) {
+      TestMultiPoint(pts2d.size() / 2, [&](size_t i, double& lon, double& lat) {
         lon = pts2d[2 * i];
         lat = pts2d[2 * i + 1];
       }));
 
   std::vector<std::array<double, 3>> pts3d{{0, 1.1, 2.2}, {3.3, 4.4, 5.5}};
   EXPECT_TRUE(TestMultiPoint(
-      pts3d.size(), [&](size_t i, double &lon, double &lat, double &alt) {
+      pts3d.size(), [&](size_t i, double& lon, double& lat, double& alt) {
         lon = pts3d[i][0];
         lat = pts3d[i][1];
         alt = pts3d[i][2];
@@ -78,14 +78,14 @@ TEST(LibgeojsonTest, MultiPointTest) {
 TEST(LibgeojsonTest, LineStringTest) {
   std::vector<double> pts2d{0, 0.5, 1, 1.5, 2, 2.5};
   EXPECT_TRUE(
-      TestLineString(pts2d.size() / 2, [&](size_t i, double &lon, double &lat) {
+      TestLineString(pts2d.size() / 2, [&](size_t i, double& lon, double& lat) {
         lon = pts2d[2 * i];
         lat = pts2d[2 * i + 1];
       }));
 
   std::vector<std::array<double, 3>> pts3d{{0, 1.1, 2.2}, {3.3, 4.4, 5.5}};
   EXPECT_TRUE(TestLineString(
-      pts3d.size(), [&](size_t i, double &lon, double &lat, double &alt) {
+      pts3d.size(), [&](size_t i, double& lon, double& lat, double& alt) {
         lon = pts3d[i][0];
         lat = pts3d[i][1];
         alt = pts3d[i][2];
@@ -97,7 +97,7 @@ TEST(LibgeojsonTest, MultiLineStringCoordinatesTest) {
       {{0, 0.5}, {1, 1.5}, {2, 2.5}}, {{2, 3}, {4, 5}}};
   EXPECT_TRUE(TestMultiLineString(
       pts2d.size(), [&](size_t l) -> size_t { return pts2d[l].size(); },
-      [&](size_t l, size_t p, double &lon, double &lat) {
+      [&](size_t l, size_t p, double& lon, double& lat) {
         lon = pts2d[l][p].first;
         lat = pts2d[l][p].second;
       }));
@@ -106,7 +106,7 @@ TEST(LibgeojsonTest, MultiLineStringCoordinatesTest) {
       {{0, 1, 2}, {3, 4.1, 5}}, {{3, 4, 5}, {6, 7, 8}, {9, 10, 11}}};
   EXPECT_TRUE(TestMultiLineString(
       pts3d.size(), [&](size_t l) -> size_t { return pts3d[l].size(); },
-      [&](size_t l, size_t p, double &lon, double &lat, double &alt) {
+      [&](size_t l, size_t p, double& lon, double& lat, double& alt) {
         lon = pts3d[l][p][0];
         lat = pts3d[l][p][1];
         alt = pts3d[l][p][2];
@@ -115,7 +115,7 @@ TEST(LibgeojsonTest, MultiLineStringCoordinatesTest) {
 
 TEST(LibgeojsonTest, IsCcwTest) {
   std::vector<double> pts;
-  auto getPoint = [&](size_t i, double &x, double &y) {
+  auto getPoint = [&](size_t i, double& x, double& y) {
     x = pts[2 * i];
     y = pts[2 * i + 1];
   };
@@ -145,7 +145,7 @@ TEST(LibgeojsonTest, IsCcwTest) {
 
 TEST(LibgeojsonTest, LinearRingCoordinatesTest) {
   std::vector<std::array<double, 3>> test;
-  auto getPoint = [&](size_t i, double &lon, double &lat, double &alt) {
+  auto getPoint = [&](size_t i, double& lon, double& lat, double& alt) {
     lon = test[i][0];
     lat = test[i][1];
     alt = test[i][2];
@@ -171,8 +171,8 @@ TEST(LibgeojsonTest, PolygonTest) {
   auto getRingLength = [&](size_t ring) {
     return ring == 0 ? outer.size() : inners[ring - 1].size();
   };
-  auto getPoint = [&](size_t ring, size_t pt, double &lon, double &lat,
-                      double &alt) {
+  auto getPoint = [&](size_t ring, size_t pt, double& lon, double& lat,
+                      double& alt) {
     if (ring == 0) {
       lon = outer[pt][0];
       lat = outer[pt][1];
@@ -202,8 +202,8 @@ TEST(LibgeojsonTest, MultiPolygonCoordinates) {
       [&](size_t poly, size_t ring) -> size_t {
         return ring == 0 ? outers[poly].size() : inners[poly][ring - 1].size();
       },
-      [&](size_t poly, size_t ring, size_t pt, double &lon, double &lat,
-          double &alt) {
+      [&](size_t poly, size_t ring, size_t pt, double& lon, double& lat,
+          double& alt) {
         if (ring == 0) {
           lon = outers[poly][pt][0];
           lat = outers[poly][pt][1];
