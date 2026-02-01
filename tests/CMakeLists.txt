@@ -22,8 +22,8 @@ function(libgeojson_add_gtest TEST_NAME)
   # Enable all compiler warnings and treat as errors
   target_compile_options(${TEST_NAME}
     PUBLIC
-      "$<$<CXX_COMPILER_ID:GNU,Clang>:-Wall -Wextra -pedantic>"
-      "$<$<CXX_COMPILER_ID:MSVC>:/W4 /WX>"
+      $<$<CXX_COMPILER_ID:GNU,Clang>:-Wall -Wextra -pedantic>
+      $<$<CXX_COMPILER_ID:MSVC>:/W4 /WX>
   )
 
   gtest_discover_tests(${TEST_NAME})
