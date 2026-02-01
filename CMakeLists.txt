@@ -42,7 +42,7 @@ endif()
 
 message(STATUS "Build type is: ${CMAKE_BUILD_TYPE}")
 
-include(GnuInstallDirs)
+include(GNUInstallDirs)
 
 find_package(nlohmann_json REQUIRED)
 
@@ -55,6 +55,10 @@ endif()
 add_library(libgeojson INTERFACE)
 add_library(${PROJECT_NAME}::libgeojson ALIAS libgeojson)
 target_compile_features(libgeojson INTERFACE cxx_std_11)
+target_compile_options(libgeojson
+  INTERFACE
+    $<$<CXX_COMPILER_ID:MSVC>:/Zc:__cplusplus>
+)
 target_link_libraries(libgeojson
   INTERFACE
     nlohmann_json::nlohmann_json

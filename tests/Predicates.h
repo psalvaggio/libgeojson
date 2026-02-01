@@ -251,7 +251,7 @@ template <typename Callable>
 
     double lon, lat, alt;
     getPoint(i, lon, lat, alt);
-    auto res = TestPosition(test[testIdx], lon, lat, alt);
+    res = TestPosition(test[testIdx], lon, lat, alt);
     if (!res) return res;
   }
   if (test[0] != test[test.size() - 1]) {
