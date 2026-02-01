@@ -36,3 +36,9 @@
 
 # CMake build directory
 build
+
+# clangd cache
+.cache
+
+# CMake-generated files
+compile_commands.json
