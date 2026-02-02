@@ -2,6 +2,7 @@
 
 ![CI](https://github.com/psalvaggio/libgeojson/workflows/CI/badge.svg)
 ![Code Quality](https://github.com/psalvaggio/libgeojson/workflows/Code%20Quality/badge.svg)
+[![Documentation](https://img.shields.io/badge/docs-doxygen-blue.svg)](https://psalvaggio.github.io/libgeojson/)
 
 This library serves as wrapper around [JSON for Modern C++](https://github.com/nlohmann/json) for the GeoJSON ([RFC 7946](https://tools.ietf.org/html/rfc7946)) standard. This library provides a set of functions to create GeoJSON objects in the form of `nlohmann::json` objects. This library does not assume any geometry data types and instead uses a callback interface to allow the user to encode their own data types into GeoJSON.
 
