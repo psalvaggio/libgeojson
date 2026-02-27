@@ -44,7 +44,9 @@ message(STATUS "Build type is: ${CMAKE_BUILD_TYPE}")
 
 include(GNUInstallDirs)
 
-find_package(nlohmann_json REQUIRED)
+if (NOT TARGET nlohmann_json::nlohmann_json)
+  find_package(nlohmann_json REQUIRED)
+endif()
 
 # If we are using ninja or make, we still want colors
 if (CMAKE_GENERATOR STREQUAL "Ninja" OR
