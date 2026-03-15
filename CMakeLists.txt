@@ -7,19 +7,41 @@ if (NOT multiConfig AND NOT DEFINED CMAKE_BUILD_TYPE)
 endif()
 
 project(libgeojson
-  VERSION
-    0.1.0
-  LANGUAGES
-    CXX
+  VERSION 0.2.0
+  DESCRIPTION "GeoJSON for Modern C++"
+  HOMEPAGE_URL "https://github.com/psalvaggio/libgeojson"
+  LANGUAGES CXX
 )
 
-# Set C++11 Standard
-set(CMAKE_CXX_STANDARD 11)
+# -- Prevent in-source builds -------------------------------------------------
+
+if (${CMAKE_SOURCE_DIR} STREQUAL ${CMAKE_BINARY_DIR})
+  message(FATAL_ERROR "In-source builds not allowed")
+endif()
+
+# -- Project-wide settings ----------------------------------------------------
+
+set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-set(CMAKE_EXPORT_COMPILE_COMMANDS ON)  # For analysis tools (clang-tidy)
+# If we are using ninja or make, we still want colors
+if (CMAKE_GENERATOR STREQUAL "Ninja" OR
+    CMAKE_GENERATOR STREQUAL "Unix Makefiles")
+  set(CMAKE_COLOR_DIAGNOSTICS TRUE)
+endif()
 
+# -- Options ------------------------------------------------------------------
+
+option(LIBGEOJSON_BUILD_TESTS "Build libgeojson tests" ${PROJECT_IS_TOP_LEVEL})
+option(LIBGEOJSON_ENABLE_CLANG_TIDY  "Enable clang-tidy analysis" OFF)
+option(LIBGEOJSON_ENABLE_CPPCHECK "Enable cppcheck analysis" OFF)
+option(LIBGEOJSON_ENABLE_IWYU "Enable include-what-you-use" OFF)
+
+
+# -- Compilation database -----------------------------------------------------
+
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)  # For analysis tools (clang-tidy)
 if (PROJECT_IS_TOP_LEVEL AND CMAKE_EXPORT_COMPILE_COMMANDS)
     set(COMPILE_DB "${PROJECT_BINARY_DIR}/compile_commands.json")
     set(COMPILE_DB_LINK "${PROJECT_SOURCE_DIR}/compile_commands.json")
@@ -35,56 +57,53 @@ if (PROJECT_IS_TOP_LEVEL AND CMAKE_EXPORT_COMPILE_COMMANDS)
     endif()
 endif()
 
-# Prevent in-source builds
-if (${CMAKE_SOURCE_DIR} STREQUAL ${CMAKE_BINARY_DIR})
-  message(FATAL_ERROR "In-source builds not allowed")
-endif()
+# -- Static analysis ----------------------------------------------------------
+
+include(cmake/StaticAnalysis.cmake)
+ 
+# -- Dependencies -------------------------------------------------------------
+
+include(cmake/Dependencies.cmake)
+
+# -- Logging ------------------------------------------------------------------
 
 message(STATUS "Build type is: ${CMAKE_BUILD_TYPE}")
 
-include(GNUInstallDirs)
-
-if (NOT TARGET nlohmann_json::nlohmann_json)
-  find_package(nlohmann_json REQUIRED)
-endif()
-
-# If we are using ninja or make, we still want colors
-if (CMAKE_GENERATOR STREQUAL "Ninja" OR
-    CMAKE_GENERATOR STREQUAL "Unix Makefiles")
-  set(CMAKE_COLOR_DIAGNOSTICS TRUE)
-endif()
+# -- Library target -----------------------------------------------------------
 
 add_library(libgeojson INTERFACE)
-add_library(${PROJECT_NAME}::libgeojson ALIAS libgeojson)
-target_compile_features(libgeojson INTERFACE cxx_std_11)
+add_library(libgeojson::libgeojson ALIAS libgeojson)
+ 
+include(GNUInstallDirs)
+target_include_directories(libgeojson
+  INTERFACE
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
+)
+
 target_compile_options(libgeojson
   INTERFACE
     $<$<CXX_COMPILER_ID:MSVC>:/Zc:__cplusplus>
 )
+ 
 target_link_libraries(libgeojson
   INTERFACE
     nlohmann_json::nlohmann_json
 )
-target_include_directories(libgeojson
-  INTERFACE
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-    $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDE_DIR}>
-)
+ 
+target_compile_features(libgeojson INTERFACE cxx_std_11)
 
 
-include(CTest)
-option(LIBGEOJSON_BUILD_TESTS "Whether to build unit tests" ${PROJECT_IS_TOP_LEVEL})
-if (LIBGEOJSON_BUILD_TESTS AND BUILD_TESTING)
-  include(FetchContent)
-  FetchContent_Declare(
-    googletest
-    URL https://github.com/google/googletest/archive/56efe3983185e3f37e43415d1afa97e3860f187f.zip
-  )
-  # For Windows: Prevent overriding the parent project's compiler/linker settings
-  set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
-  FetchContent_MakeAvailable(googletest)
+# -- Tests --------------------------------------------------------------------
 
+if (LIBGEOJSON_BUILD_TESTS)
   enable_testing()
-
   add_subdirectory(tests)
 endif()
+
+# -- Install / CMake package config -------------------------------------------
+
+if (PROJECT_IS_TOP_LEVEL)
+  include(cmake/Install.cmake)
+endif()
+

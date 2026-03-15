@@ -1,0 +1,29 @@
+# libgeojsonConfig.cmake
+#
+# Imported by downstream projects via find_package(libgeojson).
+# Provides the libgeojson::libgeojson INTERFACE target.
+#
+# Variables set on return:
+#   libgeojson_FOUND          — always TRUE when this file is loaded
+#   libgeojson_VERSION        — e.g. "1.0.0"
+#   libgeojson_INCLUDE_DIRS   — public include path (for non-target consumers)
+
+@PACKAGE_INIT@
+
+include(CMakeFindDependencyMacro)
+
+# nlohmann_json is a PUBLIC dependency of the INTERFACE target; downstream
+# consumers need it available so that the propagated usage requirements resolve.
+find_dependency(nlohmann_json @_NLOHMANN_MIN_VERSION@)
+
+# Import the exported targets (libgeojson::libgeojson).
+include("${CMAKE_CURRENT_LIST_DIR}/libgeojsonTargets.cmake")
+
+# Convenience variable for projects that prefer the old-style include path.
+get_target_property(
+  libgeojson_INCLUDE_DIRS
+  libgeojson::libgeojson
+  INTERFACE_INCLUDE_DIRECTORIES
+)
+
+check_required_components(libgeojson)

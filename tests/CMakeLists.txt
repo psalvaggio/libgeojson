@@ -1,3 +1,26 @@
+# Builds the libgeojson test suite
+
+if (TARGET GTest::gtest_main)
+  message(STATUS "[libgeojson] - GTest target already defined - skipping dependency resolution")
+  # TODO: Check the version
+else()
+  find_package(GTest QUIET)
+  if (TARGET GTest::gtest_main)
+    message(STATUS "[libgeojson] Found GTest via find_package")
+  else()
+    include(FetchContent)
+    FetchContent_Declare(
+      googletest
+      URL https://github.com/google/googletest/archive/56efe3983185e3f37e43415d1afa97e3860f187f.zip
+    )
+
+    # For Windows: Prevent overriding the parent project's compiler/linker
+    # settings
+    set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
+    FetchContent_MakeAvailable(googletest)
+  endif()
+endif()
+
 include(GoogleTest)
 
 # Add a GTest-based unit test
