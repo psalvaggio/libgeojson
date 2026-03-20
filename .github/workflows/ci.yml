@@ -6,105 +6,127 @@ on:
   pull_request:
     branches: [ master, main ]
 
+# Flags shared by every conan invocation.
+env:
+  CONAN_OPTS: >-
+    -o libgeojson:build_testing=True
+    --build missing
+    --output-folder build
+
 jobs:
-  # Linux builds with g++ and clang
-  linux:
-    name: ${{ matrix.os }} - ${{ matrix.compiler }}
-    runs-on: ${{ matrix.os }}
+  build:
+    name: ${{ matrix.compiler }}-${{ matrix.version }} ${{ matrix.build_type }} (${{ matrix.runner }})
+    runs-on: ${{ matrix.runner }}
+
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-22.04, ubuntu-24.04]
-        compiler: [g++, clang++]
-        build_type: [Debug, Release]
+        include:
+          # ── Linux / GCC ──────────────────────────────────────────────
+          - {runner: ubuntu-24.04, compiler: gcc, version: "12",  build_type: Release}
+          - {runner: ubuntu-24.04, compiler: gcc, version: "13",  build_type: Release}
+          - {runner: ubuntu-24.04, compiler: gcc, version: "14",  build_type: Release}
+          - {runner: ubuntu-24.04, compiler: gcc, version: "15",  build_type: Release}
+          - {runner: ubuntu-24.04, compiler: gcc, version: "15",  build_type: Debug}
+          # ── Linux / Clang ────────────────────────────────────────────
+          - {runner: ubuntu-24.04, compiler: clang, version: "19",  build_type: Release}
+          - {runner: ubuntu-24.04, compiler: clang, version: "20",  build_type: Release}
+          - {runner: ubuntu-24.04, compiler: clang, version: "21",  build_type: Release}
+          - {runner: ubuntu-24.04, compiler: clang, version: "22",  build_type: Release}
+          - {runner: ubuntu-24.04, compiler: clang, version: "22",  build_type: Debug}
+          # ── macOS / Apple Clang ──────────────────────────────────────
+          - {runner: macos-14, compiler: apple-clang, version: "15",  build_type: Release}
+          - {runner: macos-15, compiler: apple-clang, version: "16",  build_type: Release}
+          - {runner: macos-26, compiler: apple-clang, version: "17",  build_type: Release}
+          - {runner: macos-26, compiler: apple-clang, version: "17",  build_type: Debug}
+          # ── Windows / MSVC ───────────────────────────────────────────
+          - {runner: windows-2022, compiler: msvc, version: "193", build_type: Release}
+          - {runner: windows-2025, compiler: msvc, version: "194", build_type: Release}
+          - {runner: windows-2025, compiler: msvc, version: "194", build_type: Debug}
 
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-    - name: Install dependencies
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y cmake ninja-build nlohmann-json3-dev
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
 
-    - name: Set up compiler
-      run: |
-        if [ "${{ matrix.compiler }}" == "g++" ]; then
-          echo "CC=gcc" >> $GITHUB_ENV
-          echo "CXX=g++" >> $GITHUB_ENV
-        else
-          echo "CC=clang" >> $GITHUB_ENV
-          echo "CXX=clang++" >> $GITHUB_ENV
-        fi
+      - name: Install Conan
+        run: pip install "conan>=2.0,<3"
 
-    - name: Configure CMake
-      run: |
-        cmake -B build \
-          -G Ninja \
-          -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} \
-          -DCMAKE_CXX_COMPILER=${{ matrix.compiler }}
+      - name: Install compiler (Linux/gcc)
+        if: runner.os == 'Linux' && ${{ matrix.compiler }} == 'gcc'
+        env:
+          DEBIAN_FRONTEND: noninteractive
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends \
+            gcc-${{ matrix.version }} g++-${{ matrix.version }}
 
-    - name: Build
-      run: cmake --build build --config ${{ matrix.build_type }}
+      - name: Install compiler (Linux/clang)
+        if: runner.os == 'Linux' && ${{ matrix.compiler }} == 'clang'
+        env:
+          DEBIAN_FRONTEND: noninteractive
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends \
+            clang-${{ matrix.version }}
 
-    - name: Run tests
-      working-directory: build
-      run: ctest --output-on-failure -C ${{ matrix.build_type }}
+      # Build a Conan profile entirely from matrix variables — no
+      # checked-in profile files are needed.  conan profile detect seeds
+      # the OS/arch, then we overwrite whatever the matrix controls.
+      - name: Generate Conan profile
+        shell: python
+        run: |
+          import subprocess
 
-  # macOS builds with clang
-  macos:
-    name: macOS - clang++
-    runs-on: macos-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        build_type: [Debug, Release]
+          compiler = "${{ matrix.compiler }}"
+          version  = "${{ matrix.version }}"
+          btype    = "${{ matrix.build_type }}"
 
-    steps:
-    - name: Checkout repository
-      uses: actions/checkout@v4
+          libcxx = {
+              "gcc":         "libstdc++11",
+              "clang":       "libstdc++11",
+              "apple-clang": "libc++",
+              "msvc":        None,
+          }[compiler]
 
-    - name: Install dependencies
-      run: |
-        brew install cmake ninja nlohmann-json
+          cc_cxx = {
+              "gcc":   (f"gcc-{version}",  f"g++-{version}"),
+              "clang": (f"clang-{version}", f"clang++-{version}"),
+          }.get(compiler)
 
-    - name: Configure CMake
-      run: |
-        cmake -B build \
-          -G Ninja \
-          -DCMAKE_BUILD_TYPE=${{ matrix.build_type }}
+          def conan(*args):
+              subprocess.run(["conan", *args], check=True)
 
-    - name: Build
-      run: cmake --build build --config ${{ matrix.build_type }}
+          def setting(key, val):
+              conan("profile", "update", f"settings.{key}={val}", "ci")
 
-    - name: Run tests
-      working-directory: build
-      run: ctest --output-on-failure -C ${{ matrix.build_type }}
+          conan("profile", "detect", "--force", "--name", "ci")
+          setting("compiler",         compiler)
+          setting("compiler.version", version)
+          setting("compiler.cppstd",  "17")
+          setting("build_type",       btype)
 
-  # Windows builds with MSVC
-  windows:
-    name: Windows - MSVC
-    runs-on: windows-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        build_type: [Debug, Release]
+          if libcxx:
+              setting("compiler.libcxx", libcxx)
+          if compiler == "msvc":
+              setting("compiler.runtime", "dynamic")
+          if cc_cxx:
+              conan("profile", "update", f"env.CC={cc_cxx[0]}",  "ci")
+              conan("profile", "update", f"env.CXX={cc_cxx[1]}", "ci")
 
-    steps:
-    - name: Checkout repository
-      uses: actions/checkout@v4
+          conan("profile", "show", "ci")
 
-    - name: Install nlohmann-json
-      run: |
-        vcpkg install nlohmann-json --triplet=x64-windows
+      - name: Cache Conan packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.conan2/p
+          key: conan-${{ matrix.compiler }}-${{ matrix.version }}-${{ matrix.build_type }}-${{ hashFiles('conanfile.py') }}
+          restore-keys: conan-${{ matrix.compiler }}-${{ matrix.version }}-${{ matrix.build_type }}-
 
-    - name: Configure CMake
-      run: |
-        cmake -B build -G "Visual Studio 17 2022" -A x64 -DCMAKE_TOOLCHAIN_FILE="C:/vcpkg/scripts/buildsystems/vcpkg.cmake"
+      - name: Install dependencies
+        run: conan install . --profile ci ${{ env.CONAN_OPTS }}
 
-    - name: Build
-      run: cmake --build build --config ${{ matrix.build_type }}
-
-    - name: Run tests
-      working-directory: build
-      run: ctest --output-on-failure -C ${{ matrix.build_type }}
+      - name: Build & test
+        run: conan build . --profile ci ${{ env.CONAN_OPTS }}
