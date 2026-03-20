@@ -120,7 +120,10 @@ jobs:
               kept.insert(i, s)
  
           if cc_cxx:
-              kept += ["[env]", f"CC={cc_cxx[0]}", f"CXX={cc_cxx[1]}"]
+              kept += [
+                  "[conf]",
+                  f'tools.build:compiler_executables={{"c": "{cc_cxx[0]}", "cpp": "{cc_cxx[1]}"}}',
+              ]
  
           profile_path.write_text("\n".join(kept) + "\n")
           subprocess.run(["conan", "profile", "show"], check=True)
