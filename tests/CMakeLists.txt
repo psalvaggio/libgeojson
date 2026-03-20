@@ -86,9 +86,16 @@ set_tests_properties(CmakeExport_Install PROPERTIES
 # (e.g. build/Release/generators/conan_toolchain.cmake), so we just propagate it.
 set(_export_test_toolchain_args "")
 if (CMAKE_TOOLCHAIN_FILE)
-  list(APPEND _export_test_toolchain_args
-    "-DCMAKE_TOOLCHAIN_FILE=${PROJECT_BINARY_DIR}/${CMAKE_TOOLCHAIN_FILE}"
-  )
+  cmake_path(IS_RELATIVE CMAKE_TOOLCHAIN_FILE TOOLCHAIN_IS_RELATIVE)
+  if (TOOLCHAIN_IS_RELATIVE)
+    list(APPEND _export_test_toolchain_args
+      "-DCMAKE_TOOLCHAIN_FILE=${PROJECT_BINARY_DIR}/${CMAKE_TOOLCHAIN_FILE}"
+    )
+  else()
+    list(APPEND _export_test_toolchain_args
+        "-DCMAKE_TOOLCHAIN_FILE=${CMAKE_TOOLCHAIN_FILE}"
+    )
+  endif()
 endif()
  
 # Step 2: configure the consumer project against the temp prefix.
