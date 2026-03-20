@@ -34,8 +34,9 @@
 # Vim swap files
 *.swp
 
-# CMake build directory
+# CMake-related files
 build
+CMakeUserPresets.json
 
 # clangd cache
 .cache
@@ -45,3 +46,4 @@ compile_commands.json
 
 # MacOS files
 .DS_Store
+
