@@ -26,6 +26,7 @@ install(
   FILE        ${PROJECT_NAME}Targets.cmake
   NAMESPACE   ${PROJECT_NAME}::
   DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/${PROJECT_NAME}"
+  EXPORT_LINK_INTERFACE_LIBRARIES
 )
 
 # -- Generate the installed CMake config file ----------------------------------
