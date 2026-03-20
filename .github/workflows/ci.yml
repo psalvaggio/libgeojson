@@ -26,14 +26,12 @@ jobs:
           - {runner: ubuntu-24.04, compiler: gcc, version: "12",  build_type: Release}
           - {runner: ubuntu-24.04, compiler: gcc, version: "13",  build_type: Release}
           - {runner: ubuntu-24.04, compiler: gcc, version: "14",  build_type: Release}
-          - {runner: ubuntu-24.04, compiler: gcc, version: "15",  build_type: Release}
-          - {runner: ubuntu-24.04, compiler: gcc, version: "15",  build_type: Debug}
+          - {runner: ubuntu-24.04, compiler: gcc, version: "14",  build_type: Debug}
           # ── Linux / Clang ────────────────────────────────────────────
+          - {runner: ubuntu-24.04, compiler: clang, version: "18",  build_type: Release}
           - {runner: ubuntu-24.04, compiler: clang, version: "19",  build_type: Release}
           - {runner: ubuntu-24.04, compiler: clang, version: "20",  build_type: Release}
-          - {runner: ubuntu-24.04, compiler: clang, version: "21",  build_type: Release}
-          - {runner: ubuntu-24.04, compiler: clang, version: "22",  build_type: Release}
-          - {runner: ubuntu-24.04, compiler: clang, version: "22",  build_type: Debug}
+          - {runner: ubuntu-24.04, compiler: clang, version: "20",  build_type: Debug}
           # ── macOS / Apple Clang ──────────────────────────────────────
           - {runner: macos-14, compiler: apple-clang, version: "15",  build_type: Release}
           - {runner: macos-15, compiler: apple-clang, version: "16",  build_type: Release}
