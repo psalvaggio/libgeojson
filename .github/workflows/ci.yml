@@ -9,7 +9,7 @@ on:
 # Flags shared by every conan invocation.
 env:
   CONAN_OPTS: >-
-    -o libgeojson:build_testing=True
+    -o libgeojson/*:build_testing=True
     --build missing
     --output-folder build
 
