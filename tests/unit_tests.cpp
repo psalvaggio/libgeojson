@@ -237,3 +237,38 @@ TEST(LibgeojsonTest, FeatureCollectionTest) {
                                 props[i]);
       }));
 }
+
+TEST(LibgeojsonTest, ReadPoint2DTest) {
+  double lon, lat;
+  {
+    nlohmann::json j{{"type", "Point"}, {"coordinates", {1.23, -3.45}}};
+    geojson::ReadPoint(j, lon, lat);
+    EXPECT_EQ(lon, 1.23);
+    EXPECT_EQ(lat, -3.45);
+  }
+  {
+    nlohmann::json j{{"type", "Point"}, {"coordinates", {-2.34, 3.45, 18.2}}};
+    geojson::ReadPoint(j, lon, lat);
+    EXPECT_EQ(lon, -2.34);
+    EXPECT_EQ(lat, 3.45);
+  }
+}
+
+TEST(LibgeojsonTest, ReadPoint3DTest) {
+  {
+    double lon, lat, alt = 123456;
+    nlohmann::json j{{"type", "Point"}, {"coordinates", {1.23, -3.45}}};
+    geojson::ReadPoint(j, lon, lat, alt);
+    EXPECT_EQ(lon, 1.23);
+    EXPECT_EQ(lat, -3.45);
+    EXPECT_EQ(alt, 0);
+  }
+  {
+    double lon, lat, alt = 123456;
+    nlohmann::json j{{"type", "Point"}, {"coordinates", {-1.23, 3.45}}};
+    geojson::ReadPoint<geojson::ZStrategy::Uninitialized>(j, lon, lat, alt);
+    EXPECT_EQ(lon, -1.23);
+    EXPECT_EQ(lat, 3.45);
+    EXPECT_EQ(alt, 123456);
+  }
+}

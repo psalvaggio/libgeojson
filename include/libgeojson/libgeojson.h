@@ -7,9 +7,14 @@
 
 #pragma once
 
+#include <array>
+#include <cstdint>
 #include <nlohmann/json.hpp>
+#include <nlohmann/json_fwd.hpp>
 #include <stdexcept>
+#include <string_view>
 #include <type_traits>
+#include <variant>
 
 namespace geojson {
 
@@ -72,6 +77,8 @@ template <Type G>
 const char* TypeName() {
   return TypeName(G);
 }
+
+// ----- GeoJSON writing -------------------------------------------------------
 
 /** Returns a position array (section 3.1.1)
  *
@@ -717,4 +724,407 @@ inline nlohmann::json FeatureCollection(size_t numFeatures,
   }
   return j;
 }
+
+// ----- GeoJSON reading -------------------------------------------------------
+
+/** Controls how missing altitude values are handled when a 3-D callback is
+ *  used and a 2-D position [lon, lat] is encountered in the JSON.
+ *
+ *  Has no effect when a 2-D callback (no alt parameter) is supplied.
+ */
+enum class ZStrategy {
+  DefaultZero,    ///< Set alt = 0.0.
+  Throw,          ///< Throw ParseError at the offending position.
+  Uninitialized,  ///< Leave alt uninitialised. Caller guarantees all
+                  ///< positions in the document are 3-D.
+                  ///< \warning Undefined behaviour if a 2-D position
+                  ///<          is actually present.
+};
+
+// Error handling
+namespace detail {
+
+/** All GeoJSON key and type-name string constants used in path components.
+ *
+ *  Centralised here so every path step comes from static storage, making
+ *  string_view storage in PathBuffer safe.
+ */
+struct Keys {
+  static constexpr std::string_view type = "type";
+  static constexpr std::string_view coordinates = "coordinates";
+  static constexpr std::string_view geometries = "geometries";
+  static constexpr std::string_view geometry = "geometry";
+  static constexpr std::string_view properties = "properties";
+  static constexpr std::string_view features = "features";
+  static constexpr std::string_view id = "id";
+};
+
+using path_component_t = std::variant<std::string_view, std::size_t>;
+
+inline constexpr std::size_t kMaxPathDepth = 8;
+
+/** Fixed-depth path buffer — stack allocated, no heap.
+ *
+ *  Passed by reference through the JSON descent. Use PathGuard to push and
+ *  pop steps automatically so that every throw/return path stays consistent.
+ */
+class PathBuffer {
+ public:
+  constexpr PathBuffer() = default;
+
+  constexpr void push(std::size_t idx) noexcept {
+    if (depth_ < kMaxPathDepth) components_[depth_++] = idx;
+  }
+
+  constexpr void push(std::string_view key) noexcept {
+    if (depth_ < kMaxPathDepth) components_[depth_++] = key;
+  }
+
+  constexpr void pop() noexcept {
+    if (depth_ > 0) --depth_;
+  }
+
+  constexpr size_t depth() const noexcept { return depth_; }
+  constexpr const path_component_t& operator[](size_t i) const noexcept {
+    return components_[i];
+  }
+  constexpr const path_component_t* begin() const noexcept {
+    return components_.data();
+  }
+  constexpr const path_component_t* end() const noexcept {
+    return components_.data() + depth_;
+  }
+
+ private:
+  std::uint8_t depth_ = 0;
+  std::array<path_component_t, kMaxPathDepth> components_;
+};
+
+/// RAII guard — pushes a step on construction, pops on destruction.
+/// Eliminates the need to manually call pop() before every return/throw path.
+class PathGuard {
+ public:
+  PathGuard(PathBuffer& path, std::uint8_t idx) : path_(path) {
+    path_.push(idx);
+  }
+  PathGuard(PathBuffer& path, std::string_view key) : path_(path) {
+    path_.push(key);
+  }
+
+  ~PathGuard() { path_.pop(); }
+
+  PathGuard(const PathGuard&) = delete;
+  PathGuard& operator=(const PathGuard&) = delete;
+
+ private:
+  PathBuffer& path_;
+};
+}  // namespace detail
+
+class ParseError : public std::runtime_error {
+ public:
+  ParseError(const detail::PathBuffer& path, const std::string& msg)
+      : std::runtime_error(_build(path, msg)), path_(path) {}
+
+  const detail::PathBuffer& path() const noexcept { return path_; }
+
+  std::string pointer() const { return _pointer(path_); }
+
+ private:
+  detail::PathBuffer path_;
+
+  static std::string _pointer(const detail::PathBuffer& p) {
+    if (p.depth() == 0) return "/";
+    std::string out;
+    for (const auto& step : p) {
+      out += '/';
+      std::visit(
+          [&out](const auto& v) {
+            using T = std::decay_t<decltype(v)>;
+            if constexpr (std::is_same_v<T, std::string_view>)
+              out += v;
+            else
+              out += std::to_string(v);
+          },
+          step);
+    }
+    return out;
+  }
+
+  static std::string _build(const detail::PathBuffer& p,
+                            const std::string& msg) {
+    return "at " + _pointer(p) + ": " + msg;
+  }
+};
+
+// ---- Validation and callback traits -----------------------------------------
+
+namespace detail {
+
+/// Asserts j is of the expected JSON value type; throws ParseError otherwise.
+inline void AssertJsonType(const nlohmann::json& j,
+                           nlohmann::json::value_t expected,
+                           const PathBuffer& path) {
+  if (j.type() != expected)
+    throw ParseError(path, std::string("expected ") +
+                               nlohmann::json(expected).type_name() + ", got " +
+                               j.type_name());
+}
+
+/// Asserts j is a JSON number (integer, unsigned, or float).
+template <typename T = double>
+inline T AssertNumber(const nlohmann::json& j, const PathBuffer& path) {
+  if (!j.is_number())
+    throw ParseError(path,
+                     std::string("expected number, got ") + j.type_name());
+  return j.get<T>();
+}
+
+template <typename T = std::string_view>
+inline T AssertString(const nlohmann::json& j, const PathBuffer& path) {
+  AssertJsonType(j, nlohmann::json::value_t::string, path);
+  return j.get<T>();
+}
+
+/// Asserts j contains key and that its value is not null; throws ParseError
+/// with path pointing at the key if either condition fails.
+inline const nlohmann::json& RequiredKey(const nlohmann::json& j,
+                                         std::string_view key,
+                                         PathBuffer& path) {
+  if (auto it = j.find(key); it != j.end()) return *it;
+
+  PathGuard g(path, key);
+  throw ParseError(path, "property is required");
+}
+
+/// Asserts j["type"] equals the name of the expected GeoJSON type.
+inline void AssertGeoJsonType(const nlohmann::json& j, Type expected,
+                              PathBuffer& path) {
+  AssertJsonType(j, nlohmann::json::value_t::object, path);
+  const auto& t = RequiredKey(j, Keys::type, path);
+
+  PathGuard g(path, Keys::type);
+  auto actual = AssertString(t, path);
+  if (actual != TypeName(expected))
+    throw ParseError(path, std::string("expected GeoJSON type '") +
+                               TypeName(expected) + "', got '" +
+                               std::string(actual) + '\'');
+}
+
+// ---- Callback shape traits --------------------------------------------------
+//
+// For each geometry level we define a 2-D and a 3-D callback trait, then
+// mutually exclusive enable_if aliases used in template parameter lists.
+//
+// Index arities:
+//   Point / MultiPoint          : (size_t pt)
+//   LineString                  : (size_t pt)
+//   MultiLineString             : (size_t line, size_t pt)
+//   Polygon                     : (size_t ring, size_t pt)
+//   MultiPolygon                : (size_t poly, size_t ring, size_t pt)
+
+// 2-D point callback: void(size_t, double, double)
+template <typename F>
+using is_2d_point_cb = is_invocable_r<void, F, size_t, double, double>;
+
+// 3-D point callback: void(size_t, double, double, double)
+template <typename F>
+using is_3d_point_cb = is_invocable_r<void, F, size_t, double, double, double>;
+
+// enable_if aliases for use in template parameter lists
+template <typename F>
+using Require2DPointCb =
+    typename std::enable_if<is_2d_point_cb<F>::value, bool>::type;
+
+template <typename F>
+using Require3DPointCb = typename std::enable_if<
+    is_3d_point_cb<F>::value && !is_2d_point_cb<F>::value, bool>::type;
+
+// MultiLineString / Polygon — two indices
+template <typename F>
+using is_2d_ring_pt_cb =
+    is_invocable_r<void, F, size_t, size_t, double, double>;
+
+template <typename F>
+using is_3d_ring_pt_cb =
+    is_invocable_r<void, F, size_t, size_t, double, double, double>;
+
+template <typename F>
+using Require2DRingPtCb = typename std::enable_if<
+    is_2d_ring_pt_cb<F>::value && !is_3d_ring_pt_cb<F>::value, bool>::type;
+
+template <typename F>
+using Require3DRingPtCb =
+    typename std::enable_if<is_3d_ring_pt_cb<F>::value, bool>::type;
+
+// MultiPolygon — three indices
+template <typename F>
+using is_2d_poly_pt_cb =
+    is_invocable_r<void, F, size_t, size_t, size_t, double, double>;
+
+template <typename F>
+using is_3d_poly_pt_cb =
+    is_invocable_r<void, F, size_t, size_t, size_t, double, double, double>;
+
+template <typename F>
+using Require2DPolyPtCb = typename std::enable_if<
+    is_2d_poly_pt_cb<F>::value && !is_3d_poly_pt_cb<F>::value, bool>::type;
+
+template <typename F>
+using Require3DPolyPtCb =
+    typename std::enable_if<is_3d_poly_pt_cb<F>::value, bool>::type;
+
+// ---- Position reader --------------------------------------------------------
+
+/** Reads a single position array into lon/lat
+ *
+ *  \param pos   The JSON position array.
+ *  \param lon   Output longitude.
+ *  \param lat   Output latitude.
+ *  \param path  Caller-owned PathBuffer; must already point at this position.
+ */
+inline void ReadPositionInto(const nlohmann::json& pos, double& lon,
+                             double& lat, PathBuffer& path) {
+  AssertJsonType(pos, nlohmann::json::value_t::array, path);
+  if (pos.size() < 2)
+    throw ParseError(path, "position must have at least 2 elements");
+
+  {
+    PathGuard g(path, std::size_t{0});
+    lon = AssertNumber(pos[0], path);
+  }
+  {
+    PathGuard g(path, size_t{1});
+    lat = AssertNumber(pos[1], path);
+  }
+}
+
+/** Reads a single position array into lon/lat/alt, respecting ZStrategy.
+ *
+ *  \param pos   The JSON position array.
+ *  \param lon   Output longitude.
+ *  \param lat   Output latitude.
+ *  \param alt   Output altitude; behaviour on 2-D position governed by Z.
+ *  \param path  Caller-owned PathBuffer; must already point at this position.
+ */
+template <ZStrategy Z>
+void ReadPositionInto(const nlohmann::json& pos, double& lon, double& lat,
+                      double& alt, PathBuffer& path) {
+  ReadPositionInto(pos, lon, lat, path);
+
+  if (pos.size() >= 3) {
+    PathGuard g(path, size_t{2});
+    alt = AssertNumber(pos[2], path);
+  } else {
+    if constexpr (Z == ZStrategy::DefaultZero) {
+      alt = 0.0;
+    } else if constexpr (Z == ZStrategy::Throw) {
+      throw ParseError(path,
+                       "position coordinates were 2D, but 3D was required");
+    }
+    // ZStrategy::Uninitialized: leave alt as-is
+  }
+}
+
+// ---- InvokePoint - dispatches to 2-D or 3-D callback ----------------------
+
+/** 3-D callback overload.
+ *
+ *  \param path  Caller-owned PathBuffer; must already point at this position.
+ */
+template <ZStrategy Z, typename Callable, Require3DPointCb<Callable> = true>
+void InvokePoint(size_t idx, const nlohmann::json& pos, Callable&& cb,
+                 PathBuffer& path) {
+  double lon, lat, alt;
+  ReadPositionInto<Z>(pos, lon, lat, alt, path);
+  cb(idx, lon, lat, alt);
+}
+
+/** 2-D callback overload. ZStrategy is irrelevant and not a template param.
+ *
+ *  \param path  Caller-owned PathBuffer; must already point at this position.
+ */
+template <typename Callable, Require2DPointCb<Callable> = true>
+void InvokePoint(size_t idx, const nlohmann::json& pos, Callable&& cb,
+                 PathBuffer& path) {
+  double lon, lat, alt_ignored;
+  ReadPositionInto<ZStrategy::Uninitialized>(pos, lon, lat, alt_ignored, path);
+  cb(idx, lon, lat);
+}
+}  // namespace detail
+
+// ---- ReadPoint --------------------------------------------------------------
+
+/** Reads a GeoJSON Point object (section 3.1.2).
+ *
+ *  \tparam Z    ZStrategy governing missing altitude. Ignored for 2-D overload.
+ *  \param j     A GeoJSON Point object.
+ *  \param lon   Output longitude in decimal degrees.
+ *  \param lat   Output latitude in decimal degrees.
+ *  \param alt   Output altitude in WGS84 ellipsoidal metres.
+ *
+ *  \throws ParseError  On type mismatch, missing key, or ZStrategy::Throw
+ *                      with a 2-D position.
+ */
+template <ZStrategy Z = ZStrategy::DefaultZero>
+void ReadPoint(const nlohmann::json& j, double& lon, double& lat, double& alt) {
+  detail::PathBuffer path;
+  detail::AssertGeoJsonType(j, Type::Point, path);
+  const auto& coords = detail::RequiredKey(j, detail::Keys::coordinates, path);
+
+  detail::PathGuard g(path, detail::Keys::coordinates);
+  detail::ReadPositionInto<Z>(coords, lon, lat, alt, path);
+}
+
+/** \overload — 2D; altitude not extracted. ZStrategy has no effect. */
+inline void ReadPoint(const nlohmann::json& j, double& lon, double& lat) {
+  double alt_ignored;
+  ReadPoint<ZStrategy::Uninitialized>(j, lon, lat, alt_ignored);
+}
+
+// ---- ReadMultiPoint ---------------------------------------------------------
+
+/** Reads a GeoJSON MultiPoint object (section 3.1.3).
+ *
+ *  \tparam Z         ZStrategy governing missing altitude.
+ *  \tparam Callable  \code void(size_t index, double lon, double lat, double
+ * alt) \endcode or \code void(size_t index, double lon, double lat) \endcode
+ *  \param j          A GeoJSON MultiPoint object.
+ *  \param onPoint    Called once per point with its 0-based index and
+ * coordinates.
+ *
+ *  \throws ParseError  On structural or type error in j.
+ */
+template <ZStrategy Z = ZStrategy::DefaultZero, typename Callable,
+          detail::Require3DPointCb<Callable> = true>
+void ReadMultiPoint(const nlohmann::json& j, Callable&& onPoint) {
+  detail::PathBuffer path;
+  detail::AssertGeoJsonType(j, Type::MultiPoint, path);
+  const auto& coords = detail::RequiredKey(j, detail::Keys::coordinates, path);
+
+  detail::PathGuard cg(path, detail::Keys::coordinates);
+  detail::AssertJsonType(coords, nlohmann::json::value_t::array, path);
+
+  for (size_t i = 0; i < coords.size(); ++i) {
+    detail::PathGuard pg(path, i);
+    detail::InvokePoint<Z>(i, coords[i], std::forward<Callable>(onPoint), path);
+  }
+}
+
+/** \overload — 2-D callback; ZStrategy not applicable. */
+template <typename Callable, detail::Require2DPointCb<Callable> = true>
+void ReadMultiPoint(const nlohmann::json& j, Callable&& onPoint) {
+  detail::PathBuffer path;
+  detail::AssertGeoJsonType(j, Type::MultiPoint, path);
+  const auto& coords = detail::RequiredKey(j, detail::Keys::coordinates, path);
+
+  detail::PathGuard cg(path, detail::Keys::coordinates);
+  detail::AssertJsonType(coords, nlohmann::json::value_t::array, path);
+
+  for (size_t i = 0; i < coords.size(); ++i) {
+    detail::PathGuard pg(path, i);
+    detail::InvokePoint(i, coords[i], std::forward<Callable>(onPoint), path);
+  }
+}
+
 }  // namespace geojson
